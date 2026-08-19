@@ -1,10 +1,5 @@
 ﻿using GameNetcodeStuff;
 using HarmonyLib;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace MoreMonsters.PlayerBControllerPatches
 {
@@ -13,7 +8,7 @@ namespace MoreMonsters.PlayerBControllerPatches
     {
         [HarmonyPatch("Update")]
         [HarmonyPrefix]
-        static void patchControllerUpdate()
+        private static void patchControllerUpdate()
         {
             MoreMonstersBase.myGUI.guiIsHost = MoreMonstersBase.isHost;
             MoreMonstersBase.Instance.updateCFGVarsViaGui();

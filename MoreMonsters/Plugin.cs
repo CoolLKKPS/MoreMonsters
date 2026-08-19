@@ -1,19 +1,11 @@
 ﻿using BepInEx;
+using BepInEx.Configuration;
 using BepInEx.Logging;
 using HarmonyLib;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using UnityEngine;
 using MoreMonsters.GuiMenuComponent;
-using BepInEx.Configuration;
-using System.Runtime.CompilerServices;
 using MoreMonsters.PlayerBControllerPatches;
-using System.Security.Cryptography;
-using System.Xml.Schema;
-using GameNetcodeStuff;
+using System.Collections.Generic;
+using UnityEngine;
 
 namespace MoreMonsters
 {
@@ -68,7 +60,7 @@ namespace MoreMonsters
 
         public static int spawnedMonsterTotal = 0;
 
-        void Awake()
+        private void Awake()
         {
             /*
             if(Instance == null)
@@ -84,7 +76,7 @@ namespace MoreMonsters
 
             mls = BepInEx.Logging.Logger.CreateLogSource(modGUID);
 
-            
+
 
             harmony.PatchAll(typeof(MoreMonstersBase));
             harmony.PatchAll(typeof(PlayerControllerBPatch)); // this is necessary. No clue how other guy avoided it
@@ -97,7 +89,7 @@ namespace MoreMonsters
             SetBindings();
             setGuiVars();
 
-            
+
 
             maxEnemyList.Add("Centipede", 0);
             maxEnemyList.Add("SandSpider", 0);
@@ -122,7 +114,7 @@ namespace MoreMonsters
             currentEnemyList.Add("Crawler", 0);
             currentEnemyList.Add("Blob", 0);
             currentEnemyList.Add("DressGirl", 0);
-            currentEnemyList.Add("Puffer", 0); 
+            currentEnemyList.Add("Puffer", 0);
             currentEnemyList.Add("SpringMan", 0);
             currentEnemyList.Add("Nutcracker", 0);
             currentEnemyList.Add("Jester", 0);
@@ -133,7 +125,7 @@ namespace MoreMonsters
 
         }
 
-        void setGuiVars() // sets vars initially. update handles further changes
+        private void setGuiVars() // sets vars initially. update handles further changes
         {
             // settings the vars doesn't help
             myGUI.guiNMobs = nMobsLabel.Value;
@@ -157,7 +149,7 @@ namespace MoreMonsters
 
         internal void updateCFGVarsViaGui()
         {
-            if(!hasGuiSynced)
+            if (!hasGuiSynced)
             {
                 setGuiVars();
             }
@@ -180,8 +172,8 @@ namespace MoreMonsters
             maxLassoManLabel.Value = myGUI.guiMaxLassoMen;
         }
 
-        void Update() // not needed for now
-        {}
+        private void Update() // not needed for now
+        { }
 
         private void SetBindings()
         {
@@ -207,7 +199,7 @@ namespace MoreMonsters
 
         [HarmonyPatch(typeof(RoundManager), nameof(RoundManager.LoadNewLevel))]
         [HarmonyPostfix]
-        static void ModifyLevel(ref SelectableLevel newLevel)
+        private static void ModifyLevel(ref SelectableLevel newLevel)
         {
 
             currentRound = RoundManager.Instance;
@@ -215,30 +207,30 @@ namespace MoreMonsters
 
         [HarmonyPatch(typeof(StartOfRound), nameof(StartOfRound.ChangeLevel))]
         [HarmonyPostfix]
-        static void ChangeLevel(ref SelectableLevel ___currentLevel, ref SelectableLevel[] ___levels)
+        private static void ChangeLevel(ref SelectableLevel ___currentLevel, ref SelectableLevel[] ___levels)
         {
-            for(int i = 0; i < ___levels.Length; i++)
+            for (int i = 0; i < ___levels.Length; i++)
             {
                 mls.LogInfo(___levels[i].PlanetName);
             }
-            
+
             ___currentLevel.Enemies = ___levels[8].Enemies;
             spawnedMonsterTotal = 0;
         }
 
         [HarmonyPatch(typeof(StartOfRound), nameof(StartOfRound.StartGame))]
         [HarmonyPostfix]
-        static void modifiedStart()
+        private static void modifiedStart()
         {
             spawnedMonsterTotal = 0;
             Instance.updateCFGVarsViaGui();
         }
 
-        
+
 
         [HarmonyPatch(typeof(RoundManager), "Start")]
         [HarmonyPostfix]
-        static void setIsHost()
+        private static void setIsHost()
         {
             mls.LogInfo("Host Status: " + RoundManager.Instance.NetworkManager.IsHost.ToString());
             isHost = RoundManager.Instance.NetworkManager.IsHost;
@@ -246,16 +238,16 @@ namespace MoreMonsters
             Instance.updateCFGVarsViaGui(); // only called once - playerController makes sense as best place to call from
         }
 
-        
 
-        
+
+
 
 
         [HarmonyPatch(typeof(RoundManager), "SpawnInsideEnemiesFromVentsIfReady")]
         [HarmonyPostfix]
-        static void SpawnInsideEnemiesFromVentsIfReadyPatch()
+        private static void SpawnInsideEnemiesFromVentsIfReadyPatch()
         {
-            if(!isHost)
+            if (!isHost)
             {
                 return;
             }
@@ -264,7 +256,7 @@ namespace MoreMonsters
             //currentRound.timeScript.globalTimeSpeedMultiplier = 4f;
             //currentRound.currentLevel.maxEnemyPowerCount = 250; this was why mobs weren't limited lmao
 
-            
+
 
             maxEnemyList["Centipede"] = maxCentipedesLabel.Value;
             maxEnemyList["SandSpider"] = maxSandSpiderLabel.Value;
@@ -280,39 +272,39 @@ namespace MoreMonsters
             maxEnemyList["MaskedPlayerEnemy"] = maxMaskedPlayerEnemyLabel.Value;
             maxEnemyList["LassoMan"] = maxLassoManLabel.Value;
 
-            
+
 
             int monsterSum = 0;
 
-            
 
-            foreach(KeyValuePair<string, int> entry in maxEnemyList)
+
+            foreach (KeyValuePair<string, int> entry in maxEnemyList)
             {
                 monsterSum += entry.Value;
             }
 
-            
 
-            
-            
+
+
+
             int enemyListLength = currentRound.currentLevel.Enemies.Count;
-           
+
 
             if ((spawnedMonsterTotal < monsterSum) && (currentRound.timeScript.currentDayTime > timeToSpawn) && (currentRound.allEnemyVents.Length > 0))
             {
-                
+
                 Vector3 pos = currentRound.allEnemyVents[ventIndex].floorNode.position;
                 float y = currentRound.allEnemyVents[ventIndex].floorNode.eulerAngles.y;
-                
-                
 
-                
-                
 
-                if(enemyListLength > 0)
+
+
+
+
+                if (enemyListLength > 0)
                 {
                     int random = UnityEngine.Random.Range(0, 13);
-                    
+
                     string currEnemyName = currentRound.currentLevel.Enemies[random].enemyType.name;
 
                     // advance hour sets currentEnemySpawnIndex to 0 lmao. this loop then runs endlessly since the max mobs were reached but it was still run due to advance hour's shenanigans
@@ -322,18 +314,18 @@ namespace MoreMonsters
                         random = UnityEngine.Random.Range(0, 13);
                         currEnemyName = currentRound.currentLevel.Enemies[random].enemyType.name;
                     }
-                   
-                    
+
+
                     mls.LogInfo("Spawning " + random + " name: " + currEnemyName + " currentEnemyList: " + currentEnemyList[currEnemyName]); // never made it here
                     currentRound.SpawnEnemyOnServer(pos, y, random);
-                    
+
                     currentRound.currentLevel.Enemies[random].enemyType.numberSpawned++;
-                                       
+
 
                     currentRound.currentEnemySpawnIndex++;
                     spawnedMonsterTotal++;
                     ventIndex++;
-                    ventIndex = ventIndex % currentRound.allEnemyVents.Length;
+                    ventIndex %= currentRound.allEnemyVents.Length;
 
                     timeToSpawn = currentRound.timeScript.currentDayTime + timeBetweenMobSpawns.Value; // adds delay for mob spawning so that they don't spawn all at once
 
@@ -344,31 +336,42 @@ namespace MoreMonsters
                     {
                         if ((currentRound.valueOfFoundScrapItems > (int)(0.25 * currentRound.totalScrapValueInLevel)) && !firstTier)
                         {
-                            random = (ventIndex * (int)currentRound.timeScript.currentDayTime + (19 * (ventIndex + (int)currentRound.totalScrapValueInLevel) + 21)) % enemyListLength;
+                            random = GetRandomSpawnIndex(currentRound, enemyListLength);
                             currentRound.SpawnEnemyOnServer(pos, y, random);
                             ventIndex++;
-                            ventIndex = ventIndex % currentRound.allEnemyVents.Length;
+                            ventIndex %= currentRound.allEnemyVents.Length;
                             firstTier = true;
                         }
                         if ((currentRound.valueOfFoundScrapItems > (int)(0.5 * currentRound.totalScrapValueInLevel)) && !secondTier)
                         {
-                            random = (ventIndex * (int)currentRound.timeScript.currentDayTime + (19 * (ventIndex + (int)currentRound.totalScrapValueInLevel) + 21)) % enemyListLength;
+                            random = GetRandomSpawnIndex(currentRound, enemyListLength);
                             currentRound.SpawnEnemyOnServer(pos, y, random);
                             ventIndex++;
-                            ventIndex = ventIndex % currentRound.allEnemyVents.Length;
+                            ventIndex %= currentRound.allEnemyVents.Length;
                             secondTier = true;
                         }
                         if ((currentRound.valueOfFoundScrapItems > (int)(0.75 * currentRound.totalScrapValueInLevel)) && !thirdTier)
                         {
-                            random = (ventIndex * (int)currentRound.timeScript.currentDayTime + (19 * (ventIndex + (int)currentRound.totalScrapValueInLevel) + 21)) % enemyListLength;
+                            random = GetRandomSpawnIndex(currentRound, enemyListLength);
                             currentRound.SpawnEnemyOnServer(pos, y, random);
                             ventIndex++;
-                            ventIndex = ventIndex % currentRound.allEnemyVents.Length;
+                            ventIndex %= currentRound.allEnemyVents.Length;
                             thirdTier = true;
                         }
                     }
                 }
             }
+        }
+
+        private static int GetRandomSpawnIndex(RoundManager round, int enemyListLength)
+        {
+            int dayTime = (int)round.timeScript.currentDayTime;
+            int scrapValue = (int)round.totalScrapValueInLevel;
+
+            int firstTerm = ventIndex * dayTime;
+            int secondTerm = 19 * (ventIndex + scrapValue);
+
+            return (firstTerm + secondTerm + 21) % enemyListLength;
         }
     }
 }
