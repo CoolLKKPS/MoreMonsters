@@ -190,8 +190,8 @@ namespace MoreMonsters.GuiMenuComponent
 
             GUI.Label(new Rect(PAD, y, MENUWIDTH - PAD * 2, ROWH), "Time Between Mob Spawns", labelStyle);
             y += ROWH;
-            guiTimeBetweenMobSpawns = GUI.HorizontalSlider(new Rect(PAD, y + (ROWH - SLIDERH) / 2 + SLIDER_VERTICAL_OFFSET, 300, SLIDERH), guiTimeBetweenMobSpawns, 0, 800);
-            GUI.Label(new Rect(PAD + 310, y, MENUWIDTH - PAD * 2 - 310, ROWH), (guiTimeBetweenMobSpawns / 100f).ToString("0.00") + " hrs", textStyle);
+            guiTimeBetweenMobSpawns = GUI.HorizontalSlider(new Rect(PAD, y + (ROWH - SLIDERH) / 2 + SLIDER_VERTICAL_OFFSET, 300, SLIDERH), guiTimeBetweenMobSpawns, 0, 8);
+            GUI.Label(new Rect(PAD + 310, y, MENUWIDTH - PAD * 2 - 310, ROWH), guiTimeBetweenMobSpawns.ToString("0.00") + " hrs", textStyle);
             y += ROWH;
 
             const int TOGGLEBOX = 20;

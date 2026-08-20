@@ -1,6 +1,10 @@
+using BepInEx.Bootstrap;
 using BepInEx.Configuration;
+using LethalConfig;
+using LethalConfig.ConfigItems;
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
 namespace MoreMonsters
 {
@@ -109,9 +113,20 @@ namespace MoreMonsters
                 MaxEntry = config.Bind(ConfigSection, "Max " + configKey, 0, new ConfigDescription("Max number of " + label + " the mod is allowed to spawn", new AcceptableValueRange<int>(0, MaxEnemyLimit)))
             };
 
+            if (Chainloader.PluginInfos.ContainsKey(MoreMonstersBase.LethalConfigGUID))
+            {
+                RegisterEnemyWithLethalConfig(entry);
+            }
+
             entries.Add(entry);
             byName[enemyTypeName] = entry;
             return entry;
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static void RegisterEnemyWithLethalConfig(EnemyEntry entry)
+        {
+            LethalConfigManager.AddConfigItem(new IntSliderConfigItem(entry.MaxEntry, false));
         }
 
         public static bool TryGetMax(string enemyTypeName, out int max)

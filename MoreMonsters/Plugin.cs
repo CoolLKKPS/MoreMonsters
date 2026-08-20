@@ -1,20 +1,28 @@
 using BepInEx;
+using BepInEx.Bootstrap;
 using BepInEx.Configuration;
 using BepInEx.Logging;
 using HarmonyLib;
+using LethalConfig;
+using LethalConfig.ConfigItems;
 // using MoreMonsters.GuiMenuComponent;
 // using MoreMonsters.PlayerBControllerPatches;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
+using Unity.Netcode;
 using UnityEngine;
 
 namespace MoreMonsters
 {
     [BepInPlugin(modGUID, modName, modVersion)]
+    [BepInDependency("ainavt.lc.lethalconfig", BepInDependency.DependencyFlags.SoftDependency)]
     public class MoreMonstersBase : BaseUnityPlugin
     {
         private const string modGUID = "Quokka.MoreMonsters";
         private const string modName = "MoreMonsters";
         private const string modVersion = "1.3.0";
+
+        internal const string LethalConfigGUID = "ainavt.lc.lethalconfig";
 
         private readonly Harmony harmony = new Harmony(modGUID);
 
@@ -44,6 +52,8 @@ namespace MoreMonsters
 
         public static int spawnedMonsterTotal = 0;
 
+        private static readonly Dictionary<string, int> daySpawnCount = new Dictionary<string, int>();
+
         private void Awake()
         {
             // Major credit to @lawrencea13 for his Lethal Company Game Master code. Made understanding
@@ -65,6 +75,17 @@ namespace MoreMonsters
             */
             SetBindings();
             // setGuiVars();
+            if (Chainloader.PluginInfos.ContainsKey(LethalConfigGUID))
+            {
+                RegisterLethalConfig();
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private void RegisterLethalConfig()
+        {
+            LethalConfigManager.AddConfigItem(new FloatSliderConfigItem(timeBetweenMobSpawns, false));
+            LethalConfigManager.AddConfigItem(new BoolCheckBoxConfigItem(enableSpawnMobsAsScrapIsFound, false));
         }
 
         /*
@@ -93,7 +114,7 @@ namespace MoreMonsters
 
         private void SetBindings()
         {
-            timeBetweenMobSpawns = Config.Bind("Mob Settings", "Time between each Mob Spawn", 100f, new ConfigDescription("Time between each mob spawn where 0.1 = 1.5 hours", new AcceptableValueRange<float>(0, 800)));
+            timeBetweenMobSpawns = Config.Bind("Mob Settings", "Time between each Mob Spawn", 1f, new ConfigDescription("Time between each mob spawn in hours", new AcceptableValueRange<float>(0, 8)));
             enableSpawnMobsAsScrapIsFound = Config.Bind("Mob Settings", "Toggle whether more mobs spawn as scrap is found.", false, "If true, an additional mob will spawn at 25%, 50%, and 75% of scrap found in level");
         }
 
@@ -125,6 +146,88 @@ namespace MoreMonsters
             firstTier = false;
             secondTier = false;
             thirdTier = false;
+            ventIndex = 0;
+            daySpawnCount.Clear();
+        }
+
+        private static bool CanSpawnEnemy(EnemyType enemyType)
+        {
+            int max = EnemyRegistry.TryGetMax(enemyType.name, out int configuredMax) ? configuredMax : int.MaxValue;
+            daySpawnCount.TryGetValue(enemyType.name, out int count);
+            return count < max;
+        }
+
+        private static void CountSpawned(EnemyType enemyType)
+        {
+            string name = enemyType.name;
+            daySpawnCount[name] = daySpawnCount.TryGetValue(name, out int count) ? count + 1 : 1;
+        }
+
+        private static List<EnemyType> BuildOutsideCandidates(List<SpawnableEnemyWithRarity> list, bool isDaytime)
+        {
+            List<EnemyType> result = new List<EnemyType>();
+            if (list == null)
+            {
+                return result;
+            }
+
+            float normalizedNow = TimeOfDay.Instance != null ? TimeOfDay.Instance.normalizedTimeOfDay : 1f;
+            foreach (SpawnableEnemyWithRarity spawnable in list)
+            {
+                EnemyType enemyType = spawnable?.enemyType;
+                if (enemyType == null)
+                {
+                    continue;
+                }
+                if (isDaytime && enemyType.normalizedTimeInDayToLeave < normalizedNow)
+                {
+                    continue;
+                }
+                if (CanSpawnEnemy(enemyType))
+                {
+                    result.Add(enemyType);
+                }
+            }
+            return result;
+        }
+
+        private static void SpawnOutsideEnemy(RoundManager round, EnemyType enemyType)
+        {
+            if (enemyType == null || enemyType.enemyPrefab == null)
+            {
+                return;
+            }
+
+            round.GetOutsideAINodes(true);
+
+            GameObject[] nodes;
+            if (enemyType.WaterType == EnemyWaterType.WaterOnly)
+            {
+                nodes = round.outsideAIWaterNodes;
+            }
+            else if (enemyType.WaterType == EnemyWaterType.LandOnly)
+            {
+                nodes = round.outsideAIDryNodes;
+            }
+            else
+            {
+                nodes = round.outsideAINodes;
+            }
+
+            if (nodes == null || nodes.Length == 0)
+            {
+                return;
+            }
+
+            Vector3 spawnPos = nodes[UnityEngine.Random.Range(0, nodes.Length)].transform.position;
+            GameObject go = UnityEngine.Object.Instantiate(enemyType.enemyPrefab, spawnPos, Quaternion.Euler(Vector3.zero));
+            go.GetComponentInChildren<NetworkObject>().Spawn(true);
+            round.SpawnedEnemies.Add(go.GetComponent<EnemyAI>());
+            enemyType.numberSpawned++;
+            enemyType.hasSpawnedAtLeastOne = true;
+            CountSpawned(enemyType);
+
+            mls.LogInfo("Spawning outside " + enemyType.name + " at " + spawnPos + " spawnedMonsterTotal: " + spawnedMonsterTotal);
         }
 
         private static List<SpawnableEnemyWithRarity> MergeInsideEnemies(SelectableLevel[] levels)
@@ -213,74 +316,88 @@ namespace MoreMonsters
                 return;
             }
 
-            Vector3 pos = currentRound.allEnemyVents[ventIndex].floorNode.position;
-            float y = currentRound.allEnemyVents[ventIndex].floorNode.eulerAngles.y;
+            int ventLength = currentRound.allEnemyVents.Length;
+            EnemyVent vent = currentRound.allEnemyVents[ventIndex % ventLength];
+            Vector3 pos = vent.floorNode.position;
+            float y = vent.floorNode.eulerAngles.y;
 
-            List<SpawnableEnemyWithRarity> enemies = currentRound.currentLevel.Enemies;
-            if (enemies == null || enemies.Count == 0)
+            List<SpawnableEnemyWithRarity> indoorEnemies = currentRound.currentLevel.Enemies;
+            List<int> indoorCandidates = new List<int>();
+            if (indoorEnemies != null)
+            {
+                for (int i = 0; i < indoorEnemies.Count; i++)
+                {
+                    EnemyType enemyType = indoorEnemies[i].enemyType;
+                    if (enemyType != null && CanSpawnEnemy(enemyType))
+                    {
+                        indoorCandidates.Add(i);
+                    }
+                }
+            }
+
+            List<EnemyType> outdoorCandidates = BuildOutsideCandidates(currentRound.currentLevel.OutsideEnemies, false);
+            List<EnemyType> daytimeCandidates = BuildOutsideCandidates(currentRound.currentLevel.DaytimeEnemies, true);
+
+            int indoorCount = indoorCandidates.Count;
+            int total = indoorCount + outdoorCandidates.Count + daytimeCandidates.Count;
+            if (total == 0)
             {
                 return;
             }
 
-            List<int> candidates = new List<int>(enemies.Count);
-            for (int i = 0; i < enemies.Count; i++)
+            int roll = UnityEngine.Random.Range(0, total);
+            if (roll < indoorCount)
             {
-                EnemyType enemyType = enemies[i].enemyType;
-                if (enemyType == null)
-                {
-                    continue;
-                }
-                int max = EnemyRegistry.TryGetMax(enemyType.name, out int configuredMax) ? configuredMax : int.MaxValue;
-                if (enemyType.numberSpawned < max)
-                {
-                    candidates.Add(i);
-                }
+                int random = indoorCandidates[roll];
+                EnemyType enemyType = indoorEnemies[random].enemyType;
+                mls.LogInfo("Spawning indoor " + random + " name: " + enemyType.name + " spawnedMonsterTotal: " + spawnedMonsterTotal);
+                currentRound.SpawnEnemyOnServer(pos, y, random);
+                enemyType.numberSpawned++;
+                CountSpawned(enemyType);
             }
-            if (candidates.Count == 0)
+            else if (roll < indoorCount + outdoorCandidates.Count)
             {
-                return;
+                SpawnOutsideEnemy(currentRound, outdoorCandidates[roll - indoorCount]);
+            }
+            else
+            {
+                SpawnOutsideEnemy(currentRound, daytimeCandidates[roll - indoorCount - outdoorCandidates.Count]);
             }
 
-            int random = candidates[UnityEngine.Random.Range(0, candidates.Count)];
-            string currEnemyName = enemies[random].enemyType.name;
-
-            mls.LogInfo("Spawning " + random + " name: " + currEnemyName + " spawnedMonsterTotal: " + spawnedMonsterTotal);
-            currentRound.SpawnEnemyOnServer(pos, y, random);
-
-            enemies[random].enemyType.numberSpawned++;
             currentRound.currentEnemySpawnIndex++;
             spawnedMonsterTotal++;
             ventIndex++;
-            ventIndex %= currentRound.allEnemyVents.Length;
+            ventIndex %= ventLength;
 
-            timeToSpawn = currentRound.timeScript.currentDayTime + timeBetweenMobSpawns.Value;
+            timeToSpawn = currentRound.timeScript.currentDayTime + timeBetweenMobSpawns.Value * 100f;
 
             mls.LogInfo("spawnedMonsterTotal: " + spawnedMonsterTotal);
 
-            if (enableSpawnMobsAsScrapIsFound.Value)
+            if (enableSpawnMobsAsScrapIsFound.Value && indoorEnemies != null && indoorEnemies.Count > 0)
             {
+                int random;
                 if ((currentRound.valueOfFoundScrapItems > (int)(0.25 * currentRound.totalScrapValueInLevel)) && !firstTier)
                 {
-                    random = GetRandomSpawnIndex(currentRound, enemies.Count);
+                    random = GetRandomSpawnIndex(currentRound, indoorEnemies.Count);
                     currentRound.SpawnEnemyOnServer(pos, y, random);
                     ventIndex++;
-                    ventIndex %= currentRound.allEnemyVents.Length;
+                    ventIndex %= ventLength;
                     firstTier = true;
                 }
                 if ((currentRound.valueOfFoundScrapItems > (int)(0.5 * currentRound.totalScrapValueInLevel)) && !secondTier)
                 {
-                    random = GetRandomSpawnIndex(currentRound, enemies.Count);
+                    random = GetRandomSpawnIndex(currentRound, indoorEnemies.Count);
                     currentRound.SpawnEnemyOnServer(pos, y, random);
                     ventIndex++;
-                    ventIndex %= currentRound.allEnemyVents.Length;
+                    ventIndex %= ventLength;
                     secondTier = true;
                 }
                 if ((currentRound.valueOfFoundScrapItems > (int)(0.75 * currentRound.totalScrapValueInLevel)) && !thirdTier)
                 {
-                    random = GetRandomSpawnIndex(currentRound, enemies.Count);
+                    random = GetRandomSpawnIndex(currentRound, indoorEnemies.Count);
                     currentRound.SpawnEnemyOnServer(pos, y, random);
                     ventIndex++;
-                    ventIndex %= currentRound.allEnemyVents.Length;
+                    ventIndex %= ventLength;
                     thirdTier = true;
                 }
             }
