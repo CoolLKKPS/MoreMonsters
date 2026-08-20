@@ -179,6 +179,10 @@ namespace MoreMonsters
                 {
                     continue;
                 }
+                if (enemyType.spawningDisabled)
+                {
+                    continue;
+                }
                 if (isDaytime && enemyType.normalizedTimeInDayToLeave < normalizedNow)
                 {
                     continue;
@@ -369,7 +373,7 @@ namespace MoreMonsters
             ventIndex++;
             ventIndex %= ventLength;
 
-            timeToSpawn = currentRound.timeScript.currentDayTime + timeBetweenMobSpawns.Value * 100f;
+            timeToSpawn = currentRound.timeScript.currentDayTime + (timeBetweenMobSpawns.Value * 100f);
 
             mls.LogInfo("spawnedMonsterTotal: " + spawnedMonsterTotal);
 
