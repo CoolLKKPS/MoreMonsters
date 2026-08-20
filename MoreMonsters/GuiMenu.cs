@@ -1,4 +1,6 @@
-﻿using BepInEx.Configuration;
+﻿/*
+using BepInEx.Configuration;
+using GameNetcodeStuff;
 using UnityEngine;
 
 // credits to creator of LethalCompanyGameMaster. The following GUI code is based off of his implementation.
@@ -18,35 +20,19 @@ namespace MoreMonsters.GuiMenuComponent
         private readonly int MENUHEIGHT = 800;
         private int MENUX;
         private int MENUY;
-        private int CENTERX;
 
-        private readonly int ITEMWIDTH = 300;
+        private const int SLIDER_VERTICAL_OFFSET = 2;
 
-        public int guiNMobs;
         public float guiTimeBetweenMobSpawns;
         public bool guiEnableSpawnMobsAsScrapIsFound;
-        public int guiMaxCentipedes;
-        public int guiMaxSandSpiders;
-        //public string guiMaxSandSpidersString;
-        public int guiMaxHoarderBugs;
-        public int guiMaxFlowerMen;
-        public int guiMaxCrawlers;
-        public int guiMaxBlobs;
-        public int guiMaxSpringMen;
-        public int guiMaxPuffers;
-        public int guiMaxNutcrackers;
-        public int guiMaxDressGirls;
-        public int guiMaxJesters;
-        public int guiMaxMaskedPlayerEnemies;
-        public int guiMaxLassoMen;
 
-        //public bool guiScaleMonsterCountByPlayerCount;
+        private Vector2 scrollPos;
 
         private GUIStyle menuStyle;
         private GUIStyle buttonStyle;
         private GUIStyle labelStyle;
         private GUIStyle toggleStyle;
-        private GUIStyle hScrollStyle;
+        private GUIStyle toggleTextStyle;
         private GUIStyle textStyle;
 
         public bool guiIsHost;
@@ -59,8 +45,6 @@ namespace MoreMonsters.GuiMenuComponent
 
             MENUX = Screen.width / 2;
             MENUY = Screen.height / 2;
-
-            CENTERX = MENUX + ((MENUWIDTH / 2) - (ITEMWIDTH / 2));
         }
 
         private Texture2D MakeTex(int width, int height, Color col)
@@ -84,7 +68,6 @@ namespace MoreMonsters.GuiMenuComponent
                 buttonStyle = new GUIStyle(GUI.skin.button);
                 labelStyle = new GUIStyle(GUI.skin.label);
                 toggleStyle = new GUIStyle(GUI.skin.toggle);
-                hScrollStyle = new GUIStyle(GUI.skin.horizontalSlider);
                 textStyle = new GUIStyle
                 {
                     fontSize = 18,
@@ -110,9 +93,13 @@ namespace MoreMonsters.GuiMenuComponent
                 toggleStyle.fontSize = 18;
                 toggleStyle.wordWrap = true;
 
-                hScrollStyle.normal.textColor = Color.white;
-                hScrollStyle.normal.background = MakeTex(2, 2, new Color(0.0f, 0.0f, 0.2f, .9f));
-                hScrollStyle.normal.background.hideFlags = HideFlags.HideAndDontSave;
+                toggleTextStyle = new GUIStyle(GUI.skin.label)
+                {
+                    fontSize = 18,
+                    wordWrap = true,
+                    alignment = TextAnchor.MiddleLeft
+                };
+                toggleTextStyle.normal.textColor = Color.white;
             }
         }
         public void OnDestroy()
@@ -121,8 +108,6 @@ namespace MoreMonsters.GuiMenuComponent
         }
         public void Update()
         {
-
-
             if (toggleMenu.IsDown())
             {
                 if (!wasKeyDown)
@@ -135,26 +120,27 @@ namespace MoreMonsters.GuiMenuComponent
                 if (wasKeyDown)
                 {
                     wasKeyDown = false;
-                    b_menu = !b_menu;
-                    if (b_menu)
-                    {
-                        Cursor.visible = true;
-                        Cursor.lockState = CursorLockMode.Confined;
-                    }
-                    else
-                    {
-                        Cursor.visible = false;
-                        //Cursor.lockState = CursorLockMode.Locked;
-                    }
+                    SetMenuOpen(!b_menu);
                 }
             }
-
-
         } // end of update
+
+        private void SetMenuOpen(bool open)
+        {
+            b_menu = open;
+
+            PlayerControllerB player = GameNetworkManager.Instance?.localPlayerController;
+            if (player != null)
+            {
+                player.quickMenuManager.isMenuOpen = open;
+            }
+
+            Cursor.visible = open;
+            Cursor.lockState = open ? CursorLockMode.None : CursorLockMode.Locked;
+        }
 
         public void OnGUI()
         {
-
             if (!guiIsHost)
             {
                 return;
@@ -164,88 +150,82 @@ namespace MoreMonsters.GuiMenuComponent
                 initMenu();
             }
 
-            if (b_menu)
+            if (!b_menu)
             {
-
-
-
-                tabIndex = GUI.Toolbar(new Rect(MENUX, MENUY - 30, MENUWIDTH, 30), tabIndex, tabNames, buttonStyle);
-
-                switch (tabIndex)
-                {
-                    case 0:
-
-
-                        GUI.Label(new Rect(CENTERX, MENUY, ITEMWIDTH, 30), "Max Number of Centipedes: ", labelStyle);
-                        GUI.Label(new Rect(CENTERX + 165, MENUY, ITEMWIDTH, 30), "" + guiMaxCentipedes, textStyle);
-                        guiMaxCentipedes = (int)GUI.HorizontalSlider(new Rect(CENTERX, MENUY + 30, ITEMWIDTH, 30), guiMaxCentipedes, 0, 50);
-
-                        GUI.Label(new Rect(CENTERX, MENUY + 60, ITEMWIDTH, 30), "Max Number of SandSpiders: ", labelStyle);
-                        GUI.Label(new Rect(CENTERX + 165, MENUY + 60, ITEMWIDTH, 30), "" + guiMaxSandSpiders, textStyle);
-                        guiMaxSandSpiders = (int)GUI.HorizontalSlider(new Rect(CENTERX, MENUY + 90, ITEMWIDTH, 30), guiMaxSandSpiders, 0, 50);
-
-                        GUI.Label(new Rect(CENTERX, MENUY + 120, ITEMWIDTH, 30), "Max Number of HoarderBugs: ", labelStyle);
-                        GUI.Label(new Rect(CENTERX + 165, MENUY + 120, ITEMWIDTH, 30), "" + guiMaxHoarderBugs, textStyle);
-                        guiMaxHoarderBugs = (int)GUI.HorizontalSlider(new Rect(CENTERX, MENUY + 150, ITEMWIDTH, 30), guiMaxHoarderBugs, 0, 50);
-
-                        GUI.Label(new Rect(CENTERX, MENUY + 180, ITEMWIDTH, 30), "Max Number of Flowermen: ", labelStyle);
-                        GUI.Label(new Rect(CENTERX + 165, MENUY + 180, ITEMWIDTH, 30), "" + guiMaxFlowerMen, textStyle);
-                        guiMaxFlowerMen = (int)GUI.HorizontalSlider(new Rect(CENTERX, MENUY + 210, ITEMWIDTH, 30), guiMaxFlowerMen, 0, 50);
-
-                        GUI.Label(new Rect(CENTERX, MENUY + 240, ITEMWIDTH, 30), "Max Number of Crawlers: ", labelStyle);
-                        GUI.Label(new Rect(CENTERX + 165, MENUY + 240, ITEMWIDTH, 30), "" + guiMaxCrawlers, textStyle);
-                        guiMaxCrawlers = (int)GUI.HorizontalSlider(new Rect(CENTERX, MENUY + 270, ITEMWIDTH, 30), guiMaxCrawlers, 0, 50);
-
-                        GUI.Label(new Rect(CENTERX, MENUY + 300, ITEMWIDTH, 30), "Max Number of Blobs: ", labelStyle);
-                        GUI.Label(new Rect(CENTERX + 165, MENUY + 300, ITEMWIDTH, 30), "" + guiMaxBlobs, textStyle);
-                        guiMaxBlobs = (int)GUI.HorizontalSlider(new Rect(CENTERX, MENUY + 330, ITEMWIDTH, 30), guiMaxBlobs, 0, 50);
-
-                        GUI.Label(new Rect(CENTERX, MENUY + 360, ITEMWIDTH, 30), "Max Number of DressGirls: ", labelStyle);
-                        GUI.Label(new Rect(CENTERX + 165, MENUY + 360, ITEMWIDTH, 30), "" + guiMaxDressGirls, textStyle);
-                        guiMaxDressGirls = (int)GUI.HorizontalSlider(new Rect(CENTERX, MENUY + 390, ITEMWIDTH, 30), guiMaxDressGirls, 0, 50);
-
-                        GUI.Label(new Rect(CENTERX, MENUY + 420, ITEMWIDTH, 30), "Max Number of Puffers: ", labelStyle);
-                        GUI.Label(new Rect(CENTERX + 165, MENUY + 420, ITEMWIDTH, 30), "" + guiMaxPuffers, textStyle);
-                        guiMaxPuffers = (int)GUI.HorizontalSlider(new Rect(CENTERX, MENUY + 450, ITEMWIDTH, 30), guiMaxPuffers, 0, 50);
-
-                        GUI.Label(new Rect(CENTERX, MENUY + 480, ITEMWIDTH, 30), "Max Number of SpringMen: ", labelStyle);
-                        GUI.Label(new Rect(CENTERX + 165, MENUY + 480, ITEMWIDTH, 30), "" + guiMaxSpringMen, textStyle);
-                        guiMaxSpringMen = (int)GUI.HorizontalSlider(new Rect(CENTERX, MENUY + 510, ITEMWIDTH, 30), guiMaxSpringMen, 0, 50);
-
-                        GUI.Label(new Rect(CENTERX, MENUY + 540, ITEMWIDTH, 30), "Max Number of Nutcrackers: ", labelStyle);
-                        GUI.Label(new Rect(CENTERX + 165, MENUY + 540, ITEMWIDTH, 30), "" + guiMaxNutcrackers, textStyle);
-                        guiMaxNutcrackers = (int)GUI.HorizontalSlider(new Rect(CENTERX, MENUY + 570, ITEMWIDTH, 30), guiMaxNutcrackers, 0, 50);
-
-                        GUI.Label(new Rect(CENTERX, MENUY + 600, ITEMWIDTH, 30), "Max Number of Jesters: ", labelStyle);
-                        GUI.Label(new Rect(CENTERX + 165, MENUY + 600, ITEMWIDTH, 30), "" + guiMaxJesters, textStyle);
-                        guiMaxJesters = (int)GUI.HorizontalSlider(new Rect(CENTERX, MENUY + 630, ITEMWIDTH, 30), guiMaxJesters, 0, 50);
-
-                        GUI.Label(new Rect(CENTERX, MENUY + 660, ITEMWIDTH, 45), "Max Number of MaskedPlayerEnemies: ", labelStyle);
-                        GUI.Label(new Rect(CENTERX + 165, MENUY + 660, ITEMWIDTH, 45), "" + guiMaxMaskedPlayerEnemies, textStyle);
-                        guiMaxMaskedPlayerEnemies = (int)GUI.HorizontalSlider(new Rect(CENTERX, MENUY + 700, ITEMWIDTH, 30), guiMaxMaskedPlayerEnemies, 0, 50);
-
-                        GUI.Label(new Rect(CENTERX, MENUY + 720, ITEMWIDTH, 30), "Max Number of LassoMen: ", labelStyle);
-                        GUI.Label(new Rect(CENTERX + 165, MENUY + 720, ITEMWIDTH, 30), "" + guiMaxLassoMen, textStyle);
-                        guiMaxLassoMen = (int)GUI.HorizontalSlider(new Rect(CENTERX, MENUY + 750, ITEMWIDTH, 30), guiMaxLassoMen, 0, 50);
-
-
-                        // maybe use later guiMaxSandSpiders = Int32.Parse(GUI.TextField(new Rect(CENTERX, MENUY + 90, ITEMWIDTH, 30), guiMaxSandSpiders + ""));
-
-
-                        GUI.Label(new Rect(CENTERX, MENUY + 780, ITEMWIDTH, 40), "Time Between Mob Spawns", labelStyle);
-                        GUI.Label(new Rect(CENTERX + 240, MENUY + 780, ITEMWIDTH, 40), "" + (guiTimeBetweenMobSpawns / 100f) + " hours in-game", textStyle);
-                        guiTimeBetweenMobSpawns = GUI.HorizontalSlider(new Rect(CENTERX, MENUY + 820, ITEMWIDTH, 30), (int)guiTimeBetweenMobSpawns, 0, 800);
-
-                        guiEnableSpawnMobsAsScrapIsFound = GUI.Toggle(new Rect(CENTERX, MENUY + 850, ITEMWIDTH, 45), guiEnableSpawnMobsAsScrapIsFound, "Spawn an extra mob after finding 25%, 50%, and 75% of total scrap.", toggleStyle);
-
-                        break;
-                    // Fix IDE 0010
-                    default:
-                        break;
-                }
-
+                return;
             }
 
+            int viewportHeight = Mathf.Min(MENUHEIGHT, Screen.height - MENUY - 60);
+            if (viewportHeight < 200)
+            {
+                viewportHeight = 200;
+            }
+
+            tabIndex = GUI.Toolbar(new Rect(MENUX, MENUY - 30, MENUWIDTH, 30), tabIndex, tabNames, buttonStyle);
+
+            const int ROWH = 30;
+            const int TOGGLEH = 45;
+            const int PAD = 10;
+            const int SLIDERH = 16;
+
+            int rows = 0;
+            foreach (EnemyEntry entry in EnemyRegistry.Entries)
+            {
+                if (entry.MaxEntry != null)
+                {
+                    rows++;
+                }
+            }
+            int contentHeight = PAD + ROWH + ROWH + TOGGLEH + 10 + ROWH + ROWH + rows * ROWH + PAD;
+
+            Rect contentRect = new Rect(MENUX, MENUY, MENUWIDTH, viewportHeight);
+            GUI.Box(contentRect, GUIContent.none, menuStyle);
+
+            scrollPos = GUI.BeginScrollView(
+                contentRect,
+                scrollPos,
+                new Rect(0, 0, MENUWIDTH - PAD * 2, contentHeight));
+
+            int y = PAD;
+
+            GUI.Label(new Rect(PAD, y, MENUWIDTH - PAD * 2, ROWH), "Time Between Mob Spawns", labelStyle);
+            y += ROWH;
+            guiTimeBetweenMobSpawns = GUI.HorizontalSlider(new Rect(PAD, y + (ROWH - SLIDERH) / 2 + SLIDER_VERTICAL_OFFSET, 300, SLIDERH), guiTimeBetweenMobSpawns, 0, 800);
+            GUI.Label(new Rect(PAD + 310, y, MENUWIDTH - PAD * 2 - 310, ROWH), (guiTimeBetweenMobSpawns / 100f).ToString("0.00") + " hrs", textStyle);
+            y += ROWH;
+
+            const int TOGGLEBOX = 20;
+            guiEnableSpawnMobsAsScrapIsFound = GUI.Toggle(
+                new Rect(PAD, y + (TOGGLEH - TOGGLEBOX) / 2, TOGGLEBOX, TOGGLEBOX),
+                guiEnableSpawnMobsAsScrapIsFound,
+                GUIContent.none,
+                toggleStyle);
+            GUI.Label(
+                new Rect(PAD + TOGGLEBOX + 10, y, MENUWIDTH - PAD * 2 - TOGGLEBOX - 10, TOGGLEH),
+                "Spawn an extra mob after finding 25%, 50%, and 75% of total scrap.",
+                toggleTextStyle);
+            y += TOGGLEH + 10;
+
+            GUI.Label(new Rect(PAD, y, MENUWIDTH - PAD * 2, ROWH), "Max Number of Each Monster", labelStyle);
+            y += ROWH;
+            GUI.Label(new Rect(PAD, y, MENUWIDTH - PAD * 2, ROWH), "Total mobs the mod will spawn: " + EnemyRegistry.TotalConfigured(), textStyle);
+            y += ROWH;
+
+            foreach (EnemyEntry entry in EnemyRegistry.Entries)
+            {
+                if (entry.MaxEntry == null)
+                {
+                    continue;
+                }
+                GUI.Label(new Rect(PAD, y, 230, ROWH), entry.DisplayName + ":", labelStyle);
+                int value = Mathf.RoundToInt(GUI.HorizontalSlider(new Rect(PAD + 235, y + (ROWH - SLIDERH) / 2 + SLIDER_VERTICAL_OFFSET, 260, SLIDERH), entry.MaxEntry.Value, 0, EnemyRegistry.MaxEnemyLimit));
+                entry.MaxEntry.Value = value;
+                GUI.Label(new Rect(PAD + 500, y, 70, ROWH), "" + value, textStyle);
+                y += ROWH;
+            }
+
+            GUI.EndScrollView();
         }
     }
 }
+*/
