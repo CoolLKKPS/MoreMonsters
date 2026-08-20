@@ -5,8 +5,6 @@ using BepInEx.Logging;
 using HarmonyLib;
 using LethalConfig;
 using LethalConfig.ConfigItems;
-// using MoreMonsters.GuiMenuComponent;
-// using MoreMonsters.PlayerBControllerPatches;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using Unity.Netcode;
@@ -31,8 +29,6 @@ namespace MoreMonsters
         private static ConfigEntry<float> timeBetweenMobSpawns;
         private static ConfigEntry<bool> enableSpawnMobsAsScrapIsFound;
 
-        // private static bool hasGuiSynced = false;
-
         internal static bool isHost;
 
         public static ManualLogSource mls;
@@ -48,8 +44,6 @@ namespace MoreMonsters
 
         private static float lastCurrentDayTime = 0f;
 
-        // internal static GuiMenu myGUI;
-
         public static int spawnedMonsterTotal = 0;
 
         private static readonly Dictionary<string, int> daySpawnCount = new Dictionary<string, int>();
@@ -64,17 +58,7 @@ namespace MoreMonsters
             mls = BepInEx.Logging.Logger.CreateLogSource(modGUID);
 
             harmony.PatchAll(typeof(MoreMonstersBase));
-            /*
-            harmony.PatchAll(typeof(PlayerControllerBPatch));
-
-            var gameObject = new UnityEngine.GameObject("GuiMenu");
-            UnityEngine.GameObject.DontDestroyOnLoad(gameObject);
-            gameObject.hideFlags = HideFlags.HideAndDontSave;
-            gameObject.AddComponent<GuiMenu>();
-            myGUI = (GuiMenu)gameObject.GetComponent("GuiMenu");
-            */
             SetBindings();
-            // setGuiVars();
             if (Chainloader.PluginInfos.ContainsKey(LethalConfigGUID))
             {
                 RegisterLethalConfig();
@@ -87,30 +71,6 @@ namespace MoreMonsters
             LethalConfigManager.AddConfigItem(new FloatSliderConfigItem(timeBetweenMobSpawns, false));
             LethalConfigManager.AddConfigItem(new BoolCheckBoxConfigItem(enableSpawnMobsAsScrapIsFound, false));
         }
-
-        /*
-        private void setGuiVars()
-        {
-            myGUI.guiTimeBetweenMobSpawns = timeBetweenMobSpawns.Value;
-            myGUI.guiEnableSpawnMobsAsScrapIsFound = enableSpawnMobsAsScrapIsFound.Value;
-            hasGuiSynced = true;
-        }
-
-        internal void updateCFGVarsViaGui()
-        {
-            if (!hasGuiSynced)
-            {
-                setGuiVars();
-            }
-
-            timeBetweenMobSpawns.Value = myGUI.guiTimeBetweenMobSpawns;
-            enableSpawnMobsAsScrapIsFound.Value = myGUI.guiEnableSpawnMobsAsScrapIsFound;
-        }
-
-        private void Update()
-        {
-        }
-        */
 
         private void SetBindings()
         {
@@ -268,7 +228,6 @@ namespace MoreMonsters
             {
                 EnemyRegistry.DiscoverFromLevels(Instance.Config, startOfRound.levels);
             }
-            // Instance.updateCFGVarsViaGui();
         }
 
         [HarmonyPatch(typeof(RoundManager), "Start")]
@@ -277,14 +236,12 @@ namespace MoreMonsters
         {
             mls.LogInfo("Host Status: " + RoundManager.Instance.NetworkManager.IsHost.ToString());
             isHost = RoundManager.Instance.NetworkManager.IsHost;
-            // MoreMonstersBase.myGUI.guiIsHost = isHost;
 
             StartOfRound startOfRound = StartOfRound.Instance;
             if (startOfRound != null)
             {
                 EnemyRegistry.DiscoverFromLevels(Instance.Config, startOfRound.levels);
             }
-            // Instance.updateCFGVarsViaGui();
         }
 
         [HarmonyPatch(typeof(RoundManager), "SpawnInsideEnemiesFromVentsIfReady")]
