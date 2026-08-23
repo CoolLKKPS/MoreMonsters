@@ -1,14 +1,15 @@
-﻿using System.Reflection;
+﻿using MoreMonsters;
+using System.Reflection;
 using System.Runtime.InteropServices;
 
 // General Information about an assembly is controlled through the following
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle(MoreMonsters.MoreMonstersBase.modName)]
+[assembly: AssemblyTitle(MoreMonstersBase.modName)]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
-[assembly: AssemblyProduct(MoreMonsters.MoreMonstersBase.modName)]
+[assembly: AssemblyProduct(MoreMonstersBase.modName)]
 [assembly: AssemblyCopyright("Copyright ©  2023")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
@@ -31,5 +32,5 @@ using System.Runtime.InteropServices;
 // You can specify all the values or you can default the Build and Revision Numbers
 // by using the '*' as shown below:
 // [assembly: AssemblyVersion("1.0.*")]
-[assembly: AssemblyVersion(MoreMonsters.MoreMonstersBase.modVersionFull)]
-[assembly: AssemblyFileVersion(MoreMonsters.MoreMonstersBase.modVersionFull)]
+[assembly: AssemblyVersion(MoreMonstersBase.modVersionFull)]
+[assembly: AssemblyFileVersion(MoreMonstersBase.modVersionFull)]
