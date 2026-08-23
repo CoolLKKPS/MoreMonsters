@@ -16,9 +16,10 @@ namespace MoreMonsters
     [BepInDependency("ainavt.lc.lethalconfig", BepInDependency.DependencyFlags.SoftDependency)]
     public class MoreMonstersBase : BaseUnityPlugin
     {
-        private const string modGUID = "Quokka.MoreMonsters";
-        private const string modName = "MoreMonsters";
-        private const string modVersion = "1.3.0";
+        internal const string modGUID = "Quokka.MoreMonsters";
+        internal const string modName = "MoreMonsters";
+        internal const string modVersion = "1.3.0";
+        internal const string modVersionFull = modVersion + ".0";
 
         internal const string LethalConfigGUID = "ainavt.lc.lethalconfig";
 
